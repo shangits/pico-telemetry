@@ -55,7 +55,7 @@ target_include_directories(pico-telemetry PRIVATE
 
 # Add any user requested libraries
 target_link_libraries(pico-telemetry 
-        pico_cyw43_arch_none
+        pico_cyw43_arch_lwip_threadsafe_background
         hardware_adc
         )
 

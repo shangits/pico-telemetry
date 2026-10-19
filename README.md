@@ -7,8 +7,12 @@ Work in progress: a Wi-Fi telemetry server on the Raspberry Pi Pico W, serving l
 - [x] Heartbeat output over USB serial
 - [x] Read the internal temperature sensor
 - [x] Sample the temperature sensor from a timer interrupt with a moving average filter
-- [ ] Join Wi-Fi and get an IP address from the router
+- [x] Join Wi-Fi and get an IP address from the router
+- [ ] Serve telemetry over TCP so another machine can connect and read it
 
 ## Notes
 - The temperature reading is the chip's own die temperature, not the room. The sensor is accurate to about ±2 °C per RP2040 datasheet. Raw samples are also noisy so averaging the readings will smooth them out.
 - A 100 ms timer interrupt samples the ADC into a 16-slot ring buffer and the main loop reads the running average. Smooths the raw sensor noise, and the ISR keeps main() free.
+- Pico W only supports 2.4Ghz Wi-Fi, 5GHz-only SSID's will not appear in scans.
+- Credentials live in **wifi_config.h** (git ignored).
+- For an example template, check **wifi_config.h.example**.

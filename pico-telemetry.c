@@ -2,6 +2,9 @@
 #include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
 #include "hardware/adc.h"
+#include "wifi_config.h"
+#include "lwip/ip4_addr.h"
+#include "lwip/netif.h"
 #define WINDOW_SIZE 16
 
 // initializing variables for ring buffer to average readings
@@ -27,7 +30,21 @@ bool on_sample(struct repeating_timer *t){
 int main()
 {
     stdio_init_all();
-    cyw43_arch_init();
+    // sleep for 6s to provide time to attach screen before outputs start
+    sleep_ms(6000);
+
+    // initialize with country set to Canada and join as a client
+    cyw43_arch_init_with_country(CYW43_COUNTRY_CANADA);
+    cyw43_arch_enable_sta_mode();
+    // note: put your own personal wifi details in a wifi_config.h file
+    if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID,WIFI_PWD,CYW43_AUTH_WPA2_AES_PSK, 30000) == 0) {
+        printf(
+            "Connected! IP: %s\n", ip4addr_ntoa(netif_ip4_addr(netif_default))
+        );
+    } else {
+        printf("Wi-Fi connection failed\n");
+    }
+
     
     // initialize adc sensor, input 4 is RP2040's internal temp sensor
     adc_init();
@@ -39,7 +56,7 @@ int main()
     // start the ADC sampling timer (ISR is on_sample), runs every 100ms
     add_repeating_timer_ms(-100, on_sample, NULL, &timer);
 
-    // turn LED on to indicate firmware running and 
+    // turn LED on to indicate firmware running
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
 
     // idle loop to print avg temp at 1Hz

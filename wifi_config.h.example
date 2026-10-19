@@ -1,0 +1,4 @@
+//Copy template below into a file named "wifi_config.h" 
+//Replace definitions with valid credentials
+#define WIFI_SSID "user"
+#define WIFI_PWD "pass"
