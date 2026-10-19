@@ -56,6 +56,7 @@ target_include_directories(pico-telemetry PRIVATE
 # Add any user requested libraries
 target_link_libraries(pico-telemetry 
         pico_cyw43_arch_none
+        hardware_adc
         )
 
 pico_add_extra_outputs(pico-telemetry)
