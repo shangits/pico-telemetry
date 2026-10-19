@@ -42,7 +42,7 @@ pico_set_program_version(pico-telemetry "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(pico-telemetry 0)
-pico_enable_stdio_usb(pico-telemetry 0)
+pico_enable_stdio_usb(pico-telemetry 1)
 
 # Add the standard library to the build
 target_link_libraries(pico-telemetry
@@ -55,7 +55,7 @@ target_include_directories(pico-telemetry PRIVATE
 
 # Add any user requested libraries
 target_link_libraries(pico-telemetry 
-        
+        pico_cyw43_arch_none
         )
 
 pico_add_extra_outputs(pico-telemetry)
