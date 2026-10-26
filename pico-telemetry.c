@@ -24,8 +24,17 @@ static float read_temperature_c(void){
 }
 
 bool on_sample(struct repeating_timer *t){
-    // store raw reading
-    uint16_t raw_adc = adc_read(); // 0 to 4095
+
+    // read the adc voltage directly from the registers instead of adc_read()
+    // set START_ONCE (bit 2 of CS as per RP2040 datasheet) bit to 1
+    adc_hw->cs |= ADC_CS_START_ONCE_BITS; // starts one conversion 
+
+    // wait for conversion to complete, READY (bit 8) goes back to 1
+    while (!(adc_hw->cs & ADC_CS_READY_BITS)){
+        tight_loop_contents();
+    }
+    // grab 12 bit result, 0 to 4095
+    uint16_t raw_adc = adc_hw->result;
 
     // moving average:
     // drop the slot we're about to overwrite (oldest value in window)
