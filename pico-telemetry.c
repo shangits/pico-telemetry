@@ -5,6 +5,7 @@
 #include "wifi_config.h"
 #include "lwip/ip4_addr.h"
 #include "lwip/netif.h"
+#include "lwip/tcp.h"
 #define WINDOW_SIZE 16
 
 // initializing variables for ring buffer to average readings
@@ -12,6 +13,15 @@ static volatile uint16_t samples[WINDOW_SIZE];
 static volatile uint32_t sum;
 static volatile uint32_t idx;
 static struct repeating_timer timer;
+
+// returns the current moving average as degrees C
+// ISR keeps 'sum' updated, conversion math is processed here
+static float read_temperature_c(void){
+    float avg_adc = sum / (float)WINDOW_SIZE;
+    float avg_volts = avg_adc * 3.3f / 4096;
+    float avg_temp = 27.0f - ((avg_volts - 0.706f) / 0.001721f);
+    return avg_temp;
+}
 
 bool on_sample(struct repeating_timer *t){
     // store raw reading
@@ -27,6 +37,21 @@ bool on_sample(struct repeating_timer *t){
     return true;
 }
 
+// executes when a client connects to port 4242
+// sends the current temp as text and closes connection
+static err_t on_accept(void *arg, struct tcp_pcb *client_pcb, err_t err){
+    char buf[32];
+    int len = snprintf(buf, sizeof(buf), "%.2f\n", read_temperature_c());
+
+    // TCP_WRITE_FLAG_COPY tells lwIP to copy buf, so our
+    //  stack buffer can go away
+    tcp_write(client_pcb, buf, len, TCP_WRITE_FLAG_COPY);
+    tcp_output(client_pcb); // flush now
+    tcp_close(client_pcb);
+
+    return ERR_OK;
+}
+
 int main()
 {
     stdio_init_all();
@@ -36,15 +61,25 @@ int main()
     // initialize with country set to Canada and join as a client
     cyw43_arch_init_with_country(CYW43_COUNTRY_CANADA);
     cyw43_arch_enable_sta_mode();
+    
     // note: put your own personal wifi details in a wifi_config.h file
     if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID,WIFI_PWD,CYW43_AUTH_WPA2_AES_PSK, 30000) == 0) {
         printf(
             "Connected! IP: %s\n", ip4addr_ntoa(netif_ip4_addr(netif_default))
         );
+        
+        // set up TCP server on port 4242
+        struct tcp_pcb *server_pcb = tcp_new();
+        // bind to any interface
+        tcp_bind(server_pcb, IP_ANY_TYPE, 4242);
+        // flip to listening mode
+        server_pcb = tcp_listen(server_pcb);
+        // run on_accept when a client connects
+        tcp_accept(server_pcb, on_accept);
+
     } else {
         printf("Wi-Fi connection failed\n");
     }
-
     
     // initialize adc sensor, input 4 is RP2040's internal temp sensor
     adc_init();
@@ -61,15 +96,8 @@ int main()
 
     // idle loop to print avg temp at 1Hz
     while (true) {
-        
-        // average adc sensor readings, convert to volts, then temp (deg C)
-        printf("Time: %ds", count++);
-        float avg_adc = sum / (float)WINDOW_SIZE;
-        float avg_volts = avg_adc * 3.3f / 4096;
-        float avg_temp = 27.0f - (avg_volts-0.706f)/0.001721f;
-        printf(", Avg Temp: %.2f C\n", avg_temp);
-        
-        // 1Hz print cadence
+        // print temp over USB at 1Hz for debugging
+        printf("Time: %ds, Avg Temp: %.2f C\n", count++, read_temperature_c());
         sleep_ms(1000);
     }
 
